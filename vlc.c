@@ -6,24 +6,27 @@
 #include <inttypes.h>
 #include <string.h>
 
-#define MAX_STR 100
+#define MAX_LOG_LINE_LENGTH 10240
+
 void onVlcBuffering(const libvlc_event_t* event, void* userData);
-void logCallback(void* data, int level, const libvlc_log_t *log,
-			const char *fmt, va_list ap);
-
-
+void onLogCallback(void* data, int level, const libvlc_log_t *log, const char *fmt, va_list ap);
 
 int main(int argc, char* argv[])
 {
 	char* state2string[]={ "NothingSpecial","Opening","Buffering","Playing","Paused","Stopped","Ended","Error"};
-	
+
 	FILE* fp;
 
-     libvlc_instance_t * inst;
-     libvlc_media_player_t *mp;
-     libvlc_media_t *m;
-     /* Load the VLC engine */
-     inst = libvlc_new (0, NULL);
+	int last_displayed=0;
+	int last_check_time=0;
+	float fps=0;
+
+	libvlc_instance_t * inst;
+	libvlc_media_player_t *mp;
+	libvlc_media_t *m;
+	/* Load the VLC engine */
+	inst = libvlc_new (0, NULL);
+
 	fp=fopen("vlc.log","w");
 	if ( fp == NULL )
 	{
@@ -38,26 +41,19 @@ int main(int argc, char* argv[])
 	}
 	fclose(fp);
 
-     libvlc_log_set(inst,logCallback,NULL);
-     /* Create a new item */
-     m = libvlc_media_new_location (inst, argv[1]);
-     //m = libvlc_media_new_path (inst, "/path/to/test.mov");
+	libvlc_log_set(inst,onLogCallback,NULL);
+	/* Create a new item */
+	m = libvlc_media_new_location (inst, argv[1]);
 
-     /* Create a media player playing environement */
-     mp = libvlc_media_player_new_from_media (m);
+	/* Create a media player playing environement */
+	mp = libvlc_media_player_new_from_media (m);
 
-     libvlc_event_manager_t* eMan = libvlc_media_player_event_manager(mp);
-     libvlc_event_attach(eMan,libvlc_MediaPlayerBuffering,onVlcBuffering,NULL);
+	libvlc_event_manager_t* eMan = libvlc_media_player_event_manager(mp);
+	libvlc_event_attach(eMan,libvlc_MediaPlayerBuffering,onVlcBuffering,NULL);
 
-     /* No need to keep the media now */
-     libvlc_media_release (m);
- 
-     /* play the media_player */
-     libvlc_media_player_play (mp);
 
-     int last_check_time=0;
-     int last_displayed=0;
-     float fps=0;
+	/* play the media_player */
+	libvlc_media_player_play (mp);
 
 	while (1)
 	{
@@ -96,7 +92,7 @@ int main(int argc, char* argv[])
 			fprintf(fp,"%s;\n",state2string[state_player]);
 
 			fclose(fp);
-		
+
 			printf("Lost %d\n",stats.i_lost_pictures);
 			printf("Displayed %d\n",stats.i_displayed_pictures);
 			printf("FPS %f\n",fps);
@@ -116,16 +112,19 @@ int main(int argc, char* argv[])
 		sleep(2);
 	}
 
-     /* Stop playing */
-     libvlc_media_player_stop (mp);
+	/* Stop playing */
+	libvlc_media_player_stop (mp);
 
-     /* Free the media_player */
-     libvlc_media_player_release (mp);
+	/* Free the media_player */
+	libvlc_media_player_release (mp);
 
-     libvlc_release (inst);
+	/* No need to keep the media now */
+	libvlc_media_release (m);
 
-     return 0;
- }
+	libvlc_release (inst);
+
+	return 0;
+}
 
 
 int64_t getMilliseconds()
@@ -168,7 +167,7 @@ void reportEvent(char * tag ,char* msg)
 	fclose(fp);
 }
 
-void logCallback(void* data, int level, const libvlc_log_t *log,
+void onLogCallback(void* data, int level, const libvlc_log_t *log,
 			const char *fmt, va_list ap)
 {
 	FILE* fp=fopen("vlc.log","a");
