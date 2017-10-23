@@ -10,6 +10,9 @@
 
 void onVlcBuffering(const libvlc_event_t* event, void* userData);
 void onLogCallback(void* data, int level, const libvlc_log_t *log, const char *fmt, va_list ap);
+int64_t getMilliseconds();
+void reportEvent(char * tag ,char* msg);
+
 
 int main(int argc, char* argv[])
 {
@@ -19,13 +22,12 @@ int main(int argc, char* argv[])
 
 	int last_displayed=0;
 	int last_check_time=0;
+	int last_fps_zero=0;
 	float fps=0;
 
 	libvlc_instance_t * inst;
 	libvlc_media_player_t *mp;
 	libvlc_media_t *m;
-	/* Load the VLC engine */
-	inst = libvlc_new (0, NULL);
 
 	fp=fopen("vlc.log","w");
 	if ( fp == NULL )
@@ -41,10 +43,17 @@ int main(int argc, char* argv[])
 	}
 	fclose(fp);
 
-	libvlc_log_set(inst,onLogCallback,NULL);
 
 	while(1)
 	{
+		/* Load the VLC engine */
+		inst = libvlc_new (0, NULL);
+		libvlc_log_set(inst,onLogCallback,NULL);
+
+		last_displayed=0;
+		last_check_time=0;
+		last_fps_zero=0;
+
 		/* Create a new item */
 		m = libvlc_media_new_location (inst, argv[1]);
 
@@ -104,6 +113,10 @@ int main(int argc, char* argv[])
 
 				last_check_time=time(NULL);
 				last_displayed=stats.i_displayed_pictures;
+
+				if ( fps < 1 && fps > -1 ) last_fps_zero++;
+
+				if ( last_fps_zero == 5 ) break;
 			}
 			if (state_player == 6 ||
 				state_player == 7 ||
@@ -124,10 +137,11 @@ int main(int argc, char* argv[])
 		/* No need to keep the media now */
 		libvlc_media_release (m);
 
-		printf("------------------------------->Respawn\n");
+		libvlc_release (inst);
+
+		reportEvent("RESPAWN","");
 	}
 
-	libvlc_release (inst);
 
 	return 0;
 }
