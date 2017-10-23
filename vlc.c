@@ -42,84 +42,90 @@ int main(int argc, char* argv[])
 	fclose(fp);
 
 	libvlc_log_set(inst,onLogCallback,NULL);
-	/* Create a new item */
-	m = libvlc_media_new_location (inst, argv[1]);
 
-	/* Create a media player playing environement */
-	mp = libvlc_media_player_new_from_media (m);
-
-	libvlc_event_manager_t* eMan = libvlc_media_player_event_manager(mp);
-	libvlc_event_attach(eMan,libvlc_MediaPlayerBuffering,onVlcBuffering,NULL);
-
-
-	/* play the media_player */
-	libvlc_media_player_play (mp);
-
-	while (1)
+	while(1)
 	{
-		libvlc_media_stats_t stats;
-		libvlc_state_t state_media;
-		libvlc_state_t state_player;
-		state_media=libvlc_media_get_state(m);
-		state_player=libvlc_media_player_get_state(mp);
+		/* Create a new item */
+		m = libvlc_media_new_location (inst, argv[1]);
 
-		int err = libvlc_media_get_stats(m,&stats);
-		if (err)
+		/* Create a media player playing environement */
+		mp = libvlc_media_player_new_from_media (m);
+
+		libvlc_event_manager_t* eMan = libvlc_media_player_event_manager(mp);
+		libvlc_event_attach(eMan,libvlc_MediaPlayerBuffering,onVlcBuffering,NULL);
+
+		/* play the media_player */
+		libvlc_media_player_play (mp);
+
+		while (1)
 		{
-			int now_time=time(NULL);
+			libvlc_media_stats_t stats;
+			libvlc_state_t state_media;
+			libvlc_state_t state_player;
+			state_media=libvlc_media_get_state(m);
+			state_player=libvlc_media_player_get_state(mp);
 
-			if (now_time == last_check_time) continue;
-
-			if(last_check_time != 0 )
+			if ( state_media == 0 || state_media == 1 ) continue;
+			int err = libvlc_media_get_stats(m,&stats);
+			if (err)
 			{
-				fps=stats.i_displayed_pictures-last_displayed;
-				fps=fps/(now_time-last_check_time);
+				int now_time=time(NULL);
+
+				if (now_time == last_check_time) continue;
+
+				if(last_check_time != 0 )
+				{
+					fps=stats.i_displayed_pictures-last_displayed;
+					fps=fps/(now_time-last_check_time);
+				}
+
+				FILE* fp=fopen("report.csv","a");
+				if ( fp == NULL )
+				{
+					printf("Unable to open report.csv\n");
+					break;
+				}
+
+				fprintf(fp,"%d;",now_time);
+				fprintf(fp,"STATUS;");
+				fprintf(fp,"%d;",stats.i_lost_pictures);
+				fprintf(fp,"%d;",stats.i_displayed_pictures);
+				fprintf(fp,"%f;",fps);
+				fprintf(fp,"%s;",state2string[state_media]);
+				fprintf(fp,"%s;\n",state2string[state_player]);
+
+				fclose(fp);
+
+				printf("Lost %d ",stats.i_lost_pictures);
+				printf("Displayed %d ",stats.i_displayed_pictures);
+				printf("FPS %f ",fps);
+				printf("M=%s ",state2string[state_media]);
+				printf("MP=%s\n",state2string[state_player]);
+
+				last_check_time=time(NULL);
+				last_displayed=stats.i_displayed_pictures;
 			}
-
-			FILE* fp=fopen("report.csv","a");
-			if ( fp == NULL )
+			if (state_player == 6 ||
+				state_player == 7 ||
+				state_media == 6 ||
+				state_media == 7 )
 			{
-				printf("Unable to open report.csv\n");
 				break;
 			}
-
-			fprintf(fp,"%d;",now_time);
-			fprintf(fp,"STATUS;");
-			fprintf(fp,"%d;",stats.i_lost_pictures);
-			fprintf(fp,"%d;",stats.i_displayed_pictures);
-			fprintf(fp,"%f;",fps);
-			fprintf(fp,"%s;",state2string[state_media]);
-			fprintf(fp,"%s;\n",state2string[state_player]);
-
-			fclose(fp);
-
-			printf("Lost %d\n",stats.i_lost_pictures);
-			printf("Displayed %d\n",stats.i_displayed_pictures);
-			printf("FPS %f\n",fps);
-			printf("M state %s\n",state2string[state_media]);
-			printf("MP state %s\n",state2string[state_player]);
-
-			last_check_time=time(NULL);
-			last_displayed=stats.i_displayed_pictures;
+			sleep(2);
 		}
-		if (state_player == 6 ||
-			state_player == 7 ||
-			state_media == 6 ||
-			state_media == 7 )
-		{
-			break;
-		}
-		sleep(2);
+
+		/* Stop playing */
+		libvlc_media_player_stop (mp);
+
+		/* Free the media_player */
+		libvlc_media_player_release (mp);
+
+		/* No need to keep the media now */
+		libvlc_media_release (m);
+
+		printf("------------------------------->Respawn\n");
 	}
-
-	/* Stop playing */
-	libvlc_media_player_stop (mp);
-
-	/* Free the media_player */
-	libvlc_media_player_release (mp);
-
-	/* No need to keep the media now */
-	libvlc_media_release (m);
 
 	libvlc_release (inst);
 
@@ -149,6 +155,8 @@ void onVlcBuffering(const libvlc_event_t* event, void* userData)
 	fprintf(fp,"BUFFERING;");
 	fprintf(fp,"%f%%;\n",percent);
 	fclose(fp);
+
+	printf("BUFFERING %f%%\n",percent);
 }
 
 
@@ -165,6 +173,8 @@ void reportEvent(char * tag ,char* msg)
 	fprintf(fp,"%s;",tag);
 	fprintf(fp,"%s;\n",msg);
 	fclose(fp);
+
+	printf("%s '%s'\n",tag,msg);
 }
 
 void onLogCallback(void* data, int level, const libvlc_log_t *log,
