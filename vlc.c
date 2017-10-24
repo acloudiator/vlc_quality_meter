@@ -24,6 +24,8 @@ int main(int argc, char* argv[])
 	int last_displayed=0;
 	int last_check_time=0;
 	int last_fps_zero=0;
+	int last_lost=0;
+	int lost_sum=0;
 	float fps=0;
 
 	libvlc_instance_t * inst;
@@ -54,7 +56,7 @@ int main(int argc, char* argv[])
 		last_displayed=0;
 		last_check_time=0;
 		last_fps_zero=0;
-
+		last_lost=0;
 		/* Create a new item */
 		m = libvlc_media_new_location (inst, argv[1]);
 
@@ -92,6 +94,7 @@ int main(int argc, char* argv[])
 					fps=fps/(now_time-last_check_time);
 				}
 
+				last_lost = stats.i_lost_pictures;
 				libvlc_video_get_size(mp,0,&width,&height);
 
 				FILE* fp=fopen("report.csv","a");
@@ -103,7 +106,7 @@ int main(int argc, char* argv[])
 
 				fprintf(fp,"%d;",now_time);
 				fprintf(fp,"STATUS;");
-				fprintf(fp,"%d;",stats.i_lost_pictures);
+				fprintf(fp,"%d;",last_lost+lost_sum);
 				fprintf(fp,"%d;",stats.i_displayed_pictures);
 				fprintf(fp,"%f;",fps);
 				fprintf(fp,"%d;",height);
@@ -113,7 +116,7 @@ int main(int argc, char* argv[])
 
 				fclose(fp);
 
-				printf("Lost %d ",stats.i_lost_pictures);
+				printf("Lost %d ",last_lost+lost_sum);
 				printf("Displayed %d ",stats.i_displayed_pictures);
 				printf("FPS %f ",fps);
 				printf("W %d H %d ",width,height);
@@ -136,6 +139,7 @@ int main(int argc, char* argv[])
 			}
 			sleep(2);
 		}
+		lost_sum += last_lost;
 
 		/* Stop playing */
 		libvlc_media_player_stop (mp);
@@ -180,7 +184,7 @@ void onVlcBuffering(const libvlc_event_t* event, void* userData)
 	}
 
 //	fprintf(fp,"%"PRId64";",getMilliseconds());
-	fprintf(fp,"%d";",getTime());
+	fprintf(fp,"%d;",getTime());
 	fprintf(fp,"BUFFERING;");
 	fprintf(fp,"%f%%;\n",percent);
 	fclose(fp);
@@ -199,7 +203,7 @@ void reportEvent(char * tag ,char* msg)
 	}
 
 //	fprintf(fp,"%"PRId64";",getMilliseconds());
-	fprintf(fp,"%d";",getTime());
+	fprintf(fp,"%d;",getTime());
 	fprintf(fp,"%s;",tag);
 	fprintf(fp,"%s;\n",msg);
 	fclose(fp);
