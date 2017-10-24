@@ -11,6 +11,7 @@
 void onVlcBuffering(const libvlc_event_t* event, void* userData);
 void onLogCallback(void* data, int level, const libvlc_log_t *log, const char *fmt, va_list ap);
 int64_t getMilliseconds();
+int getTime();
 void reportEvent(char * tag ,char* msg);
 
 
@@ -154,6 +155,11 @@ int64_t getMilliseconds()
 	return t.tv_sec*INT64_C(1000)+t.tv_nsec/1000000;
 }
 
+int getTime()
+{
+	return time(NULL);
+}
+
 void onVlcBuffering(const libvlc_event_t* event, void* userData)
 {
 	float percent = (float) event->u.media_player_buffering.new_cache;
@@ -165,7 +171,8 @@ void onVlcBuffering(const libvlc_event_t* event, void* userData)
 		exit(1);
 	}
 
-	fprintf(fp,"%"PRId64";",getMilliseconds());
+//	fprintf(fp,"%"PRId64";",getMilliseconds());
+	fprintf(fp,"%d";",getTime());
 	fprintf(fp,"BUFFERING;");
 	fprintf(fp,"%f%%;\n",percent);
 	fclose(fp);
@@ -183,7 +190,8 @@ void reportEvent(char * tag ,char* msg)
 		exit(1);
 	}
 
-	fprintf(fp,"%"PRId64";",getMilliseconds());
+//	fprintf(fp,"%"PRId64";",getMilliseconds());
+	fprintf(fp,"%d";",getTime());
 	fprintf(fp,"%s;",tag);
 	fprintf(fp,"%s;\n",msg);
 	fclose(fp);
