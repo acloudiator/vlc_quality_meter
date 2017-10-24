@@ -80,6 +80,9 @@ int main(int argc, char* argv[])
 			{
 				int now_time=time(NULL);
 
+				unsigned int width=0;
+				unsigned int height=0;
+
 				if (now_time == last_check_time) continue;
 
 				if(last_check_time != 0 )
@@ -87,6 +90,8 @@ int main(int argc, char* argv[])
 					fps=stats.i_displayed_pictures-last_displayed;
 					fps=fps/(now_time-last_check_time);
 				}
+
+				libvlc_video_get_size(mp,0,&width,&height);
 
 				FILE* fp=fopen("report.csv","a");
 				if ( fp == NULL )
@@ -100,6 +105,8 @@ int main(int argc, char* argv[])
 				fprintf(fp,"%d;",stats.i_lost_pictures);
 				fprintf(fp,"%d;",stats.i_displayed_pictures);
 				fprintf(fp,"%f;",fps);
+				fprintf(fp,"%d;",height);
+				fprintf(fp,"%d;",width);
 				fprintf(fp,"%s;",state2string[state_media]);
 				fprintf(fp,"%s;\n",state2string[state_player]);
 
@@ -108,6 +115,7 @@ int main(int argc, char* argv[])
 				printf("Lost %d ",stats.i_lost_pictures);
 				printf("Displayed %d ",stats.i_displayed_pictures);
 				printf("FPS %f ",fps);
+				printf("W %d H %d ",width,height);
 				printf("M=%s ",state2string[state_media]);
 				printf("MP=%s\n",state2string[state_player]);
 
