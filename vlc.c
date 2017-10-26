@@ -78,6 +78,7 @@ int main(int argc, char* argv[])
 			state_player=libvlc_media_player_get_state(mp);
 
 			if ( state_media == 0 || state_media == 1 ) continue;
+
 			int err = libvlc_media_get_stats(m,&stats);
 			if (err)
 			{
@@ -111,6 +112,7 @@ int main(int argc, char* argv[])
 				fprintf(fp,"%f;",fps);
 				fprintf(fp,"%d;",height);
 				fprintf(fp,"%d;",width);
+				fprintf(fp,"%f;",stats.f_demux_bitrate*8000);
 				fprintf(fp,"%s;",state2string[state_media]);
 				fprintf(fp,"%s;\n",state2string[state_player]);
 
@@ -120,6 +122,7 @@ int main(int argc, char* argv[])
 				printf("Displayed %d ",stats.i_displayed_pictures);
 				printf("FPS %f ",fps);
 				printf("W %d H %d ",width,height);
+				printf("Bitrate %f kbit/s\n",stats.f_demux_bitrate*8000);
 				printf("M=%s ",state2string[state_media]);
 				printf("MP=%s\n",state2string[state_player]);
 
@@ -152,6 +155,7 @@ int main(int argc, char* argv[])
 
 		libvlc_release (inst);
 
+		sleep(2);
 		reportEvent("RESPAWN","");
 	}
 
