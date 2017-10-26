@@ -64,7 +64,9 @@ xstart=0
 xend=0
 xthreshold1=0
 xthreshold2=0
-
+sumb=0
+mlen=1
+r=0
 for row in report:
 	record_type = row[1]
 
@@ -109,7 +111,7 @@ for row in report:
 	elif ( record_type == "STATUS" ):
 		timestamp = int(row[0])
 
-		fps = int(row[4])
+		fps = float(row[4])
 		last_fps = fps
 		lost = int(row[2])
 		height =  int(row[5])
@@ -127,9 +129,20 @@ for row in report:
 
 		bitrate = 0
 		if ( fps != 0 ):
-			bitrate = int (row[7])
+			bitrate = float(row[7])
 
-		writer.writerow([timestamp,fps,lost,height,width,bitrate])
+		if ( r == 0 and int(row[0]) > int(xthreshold1) ):
+			mlen = 1
+			sumb = 0
+			r = 1
+		if ( r == 2 and int(row[0]) > int(xthreshold2) ):
+			mlen = 1
+			sumb = 0
+			r = 2
+
+		sumb = sumb + float(bitrate)
+		writer.writerow([timestamp,fps,lost,height,width,bitrate,sumb/mlen])
+		mlen = mlen +1
 	else:
 #		print("Invalid record type:",record_type)
 		pass
@@ -153,26 +166,29 @@ bwriter = csv.writer(bout,
 			quoting=csv.QUOTE_MINIMAL)
 sumtx=0
 sumrx=0
-len=1
+mlen=1
 r=0
 for row in breader:
 	if ( int(row[0]) >= int(xstart) ):
 		if ( r == 0 and int(row[0]) > int(xthreshold1) ):
-			len = 1
+			mlen = 1
 			sumtx = 0
 			sumrx = 0
+			sumb = 0
 			r = 1 
 		if ( r == 2 and int(row[0]) > int(xthreshold2) ):
-			len = 1
+			mlen = 1
 			sumtx = 0
 			sumrx = 0
+			sumb = 0
 			r = 2
 
 		sumtx = sumtx + float(row[2])
 		sumrx = sumrx + float(row[3])
-		newrow=[row[0],0,row[2],row[3],sumtx/len,sumrx/len]
+		sumb = sumb + float(row[6])
+		newrow=[row[0],0,row[2],row[3],sumtx/mlen,sumrx/mlen,sumb/mlen]
 		bwriter.writerow(newrow)
-		len = len + 1
+		mlen = mlen + 1
 
 bout.close()
 bandwidthfile.close()
@@ -185,8 +201,8 @@ gnuplot.write("init(x) = ( sum = 0 )\n")
 
 gnuplot.write("plot sum = init(0), \\\n")
 gnuplot.write("\t'tmp/output.csv' using ($1-"+str(xstart)+"):2 t'FPS' with line, \\\n")
-gnuplot.write("\t'' using ($1-"+str(xstart)+"):(sum = sum + $2, sum/($0+1)) t'AVG FPS' with line, \\\n")
-gnuplot.write("\t'' using ($1-"+str(xstart)+"):3 t'Frame lost' with line, \\\n")
+#gnuplot.write("\t'' using ($1-"+str(xstart)+"):(sum = sum + $2, sum/($0+1)) t'AVG FPS' with line, \\\n")
+#gnuplot.write("\t'' using ($1-"+str(xstart)+"):3 t'Frame lost' with line, \\\n")
 gnuplot.write("\t'tmp/output_error.csv' using ($1-"+str(xstart)+"):2 t'Errors', \\\n")
 gnuplot.write("\t'tmp/output_buff.csv' using ($1-"+str(xstart)+"):2 t'Buffering' \n")
 
@@ -213,14 +229,15 @@ gnuplot.write("unset label\n")
 
 
 gnuplot.write("set arrow from graph 0,first 1148 to graph 1,first 1148 nohead lc rgb '#FF0000' front\n")
-gnuplot.write("set arrow from graph 0,first 993 to graph 1,first 992 nohead lc rgb '#0000FF' front\n")
+gnuplot.write("set arrow from graph 0,first 946 to graph 1,first 946 nohead lc rgb '#0000FF' front\n")
 
 gnuplot.write("plot sum= init(0), \\\n")
 #gnuplot.write("\t'"+bffile+"' using ($1-"+str(xstart)+"):($3*8/1000) t'Tx' with line, \\\n")
 #gnuplot.write("\t'"+bffile+"' using ($1-"+str(xstart)+"):($4*8/1000) t'Rx' with line, \\\n")
 #gnuplot.write("\t'"+bffile+"' using ($1-"+str(xstart)+"):($5*8/1000) t'AVG Tx' with line, \\\n")
-gnuplot.write("\t'"+bffile+"' using ($1-"+str(xstart)+"):($6*8/1000) t'AVG Rx' with line, \\ \n")
-gnuplot.write("\t'tmp/output.csv' using ($1-"+str(xstart)+"):6 t'Bitrate kbits/s' with line \n")
+gnuplot.write("\t'"+bffile+"' using ($1-"+str(xstart)+"):($6*8/1000) t'AVG Rx' with line, \\\n")
+gnuplot.write("\t'tmp/output.csv' using ($1-"+str(xstart)+"):6 t'Bitrate' with line, \\\n")
+gnuplot.write("\t'tmp/output.csv' using ($1-"+str(xstart)+"):7 t'AVG Bitrate' with line \n")
 
 
 
