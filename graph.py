@@ -131,11 +131,11 @@ for row in report:
 		if ( fps != 0 ):
 			bitrate = float(row[7])
 
-		if ( r == 0 and int(row[0]) > int(xthreshold1) ):
+		if ( r == 0 and int(row[0]) > int(xthreshold1) and int(xthreshold1) > 0):
 			mlen = 1
 			sumb = 0
 			r = 1
-		if ( r == 2 and int(row[0]) > int(xthreshold2) ):
+		elif ( r == 1 and int(row[0]) > int(xthreshold2) and int(xthreshold2) > 0):
 			mlen = 1
 			sumb = 0
 			r = 2
@@ -176,7 +176,7 @@ for row in breader:
 			sumrx = 0
 			sumb = 0
 			r = 1 
-		if ( r == 2 and int(row[0]) > int(xthreshold2) ):
+		if ( r == 1 and int(row[0]) > int(xthreshold2) ):
 			mlen = 1
 			sumtx = 0
 			sumrx = 0
@@ -229,7 +229,7 @@ gnuplot.write("unset label\n")
 
 
 gnuplot.write("set arrow from graph 0,first 1148 to graph 1,first 1148 nohead lc rgb '#FF0000' front\n")
-gnuplot.write("set arrow from graph 0,first 946 to graph 1,first 946 nohead lc rgb '#0000FF' front\n")
+gnuplot.write("set arrow from graph 0,first 296 to graph 1,first 296 nohead lc rgb '#0000FF' front\n")
 
 gnuplot.write("plot sum= init(0), \\\n")
 #gnuplot.write("\t'"+bffile+"' using ($1-"+str(xstart)+"):($3*8/1000) t'Tx' with line, \\\n")
