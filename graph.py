@@ -6,8 +6,6 @@ import os
 
 
 xstep=240
-xstart=0
-xend=0
 
 lbl_height=32
 
@@ -24,7 +22,7 @@ gnuplot.write("set lmargin 10\n")
 gnuplot.write("set terminal pngcairo size 1024,960 enhanced font 'Verdana,10'\n")
 gnuplot.write("set xlabel 'Tempo (s)'\n")
 
-gnuplot.write("set multiplot layout 2,1\n")
+gnuplot.write("set multiplot layout 3,1\n")
 gnuplot.write("set ylabel 'FPS'\n")
 gnuplot.write("set title 'Self-orchestrator validation'\n")
 #gnuplot.write("set autoscale\n")
@@ -62,6 +60,10 @@ lost=0
 last_fps=0
 last_width=0
 last_height=0
+xstart=0
+xend=0
+xthreshold1=0
+xthreshold2=0
 
 for row in report:
 	record_type = row[1]
@@ -72,8 +74,10 @@ for row in report:
 		msg = row[2]
 
 		if ( xstart == 0 ):
+			xthreshold1=timestamp
 			xstart = timestamp - xstep
 		elif ( xend == 0 ):
+			xthreshold2=timestamp
 			xend = timestamp + xstep
 
 		gnuplot.write("set arrow from "+str(timestamp-xstart)+", graph 0 to "+str(timestamp-xstart)+", graph 1 nohead\n")
@@ -105,9 +109,9 @@ for row in report:
 	elif ( record_type == "STATUS" ):
 		timestamp = int(row[0])
 
-		fps = row[4]
+		fps = int(row[4])
 		last_fps = fps
-		lost = row[2]
+		lost = int(row[2])
 		height =  int(row[5])
 		width = int(row[6])
 
@@ -121,7 +125,11 @@ for row in report:
 		else:
 			height = last_height
 
-		writer.writerow([timestamp,fps,lost,height,width])
+		bitrate = 0
+		if ( fps != 0 ):
+			bitrate = int (row[7])
+
+		writer.writerow([timestamp,fps,lost,height,width,bitrate])
 	else:
 #		print("Invalid record type:",record_type)
 		pass
@@ -143,10 +151,28 @@ bwriter = csv.writer(bout,
 			delimiter=';',
 			quotechar='"',
 			quoting=csv.QUOTE_MINIMAL)
-
+sumtx=0
+sumrx=0
+len=1
+r=0
 for row in breader:
 	if ( int(row[0]) >= int(xstart) ):
-		bwriter.writerow(row)
+		if ( r == 0 and int(row[0]) > int(xthreshold1) ):
+			len = 1
+			sumtx = 0
+			sumrx = 0
+			r = 1 
+		if ( r == 2 and int(row[0]) > int(xthreshold2) ):
+			len = 1
+			sumtx = 0
+			sumrx = 0
+			r = 2
+
+		sumtx = sumtx + float(row[2])
+		sumrx = sumrx + float(row[3])
+		newrow=[row[0],0,row[2],row[3],sumtx/len,sumrx/len]
+		bwriter.writerow(newrow)
+		len = len + 1
 
 bout.close()
 bandwidthfile.close()
@@ -164,7 +190,19 @@ gnuplot.write("\t'' using ($1-"+str(xstart)+"):3 t'Frame lost' with line, \\\n")
 gnuplot.write("\t'tmp/output_error.csv' using ($1-"+str(xstart)+"):2 t'Errors', \\\n")
 gnuplot.write("\t'tmp/output_buff.csv' using ($1-"+str(xstart)+"):2 t'Buffering' \n")
 
-gnuplot.write("set ylabel 'Bandwidth usage (MBps)'\n")
+gnuplot.write("set ylabel 'Resolution (Pixel)'\n")
+#gnuplot.write("set yrange [0:1200]\n")
+gnuplot.write("set autoscale\n")
+gnuplot.write("set xrange [0:"+str(xend-xstart)+"]\n")
+gnuplot.write("unset label\n")
+
+gnuplot.write("plot sum= init(0), \\\n")
+
+gnuplot.write("\t'tmp/output.csv' using ($1-"+str(xstart)+"):4 t'Height' with line, \\\n")
+gnuplot.write("\t'tmp/output.csv' using ($1-"+str(xstart)+"):5 t'Width' with line \n")
+
+
+gnuplot.write("set ylabel 'Bandwidth usage (Kbps)'\n")
 #gnuplot.write("set yrange [0:1200]\n")
 gnuplot.write("set autoscale\n")
 gnuplot.write("set xrange [0:"+str(xend-xstart)+"]\n")
@@ -173,12 +211,17 @@ gnuplot.write("unset label\n")
 #gnuplot.write("plot 'output.csv' using 1:4 t'Tx' with line, \\\n")
 #gnuplot.write("\t'' using 1:5 t'Rx' with line\n")
 
+
+gnuplot.write("set arrow from graph 0,first 1148 to graph 1,first 1148 nohead lc rgb '#FF0000' front\n")
+gnuplot.write("set arrow from graph 0,first 993 to graph 1,first 992 nohead lc rgb '#0000FF' front\n")
+
 gnuplot.write("plot sum= init(0), \\\n")
-gnuplot.write("\t'"+bffile+"' using ($1-"+str(xstart)+"):($3/1024/1024*8) t'Tx' with line, \\\n")
-gnuplot.write("\t'' using ($1-"+str(xstart)+"):($4/1024/1024*8) t'Rx' with line, \\\n")
-gnuplot.write("\t'"+bffile+"' using ($1-"+str(xstart)+"):(sum = sum + $3/1024/1024*8, sum/($0+1)) t'AVG TX' with line, \\\n")
-gnuplot.write("\tsum=init(0), \\\n")
-gnuplot.write("\t'' using ($1-"+str(xstart)+"):(sum = sum + $4/1024/1024*8, sum/($0+1)) t'AVG RX' with line \n")
+#gnuplot.write("\t'"+bffile+"' using ($1-"+str(xstart)+"):($3*8/1000) t'Tx' with line, \\\n")
+#gnuplot.write("\t'"+bffile+"' using ($1-"+str(xstart)+"):($4*8/1000) t'Rx' with line, \\\n")
+#gnuplot.write("\t'"+bffile+"' using ($1-"+str(xstart)+"):($5*8/1000) t'AVG Tx' with line, \\\n")
+gnuplot.write("\t'"+bffile+"' using ($1-"+str(xstart)+"):($6*8/1000) t'AVG Rx' with line, \\ \n")
+gnuplot.write("\t'tmp/output.csv' using ($1-"+str(xstart)+"):6 t'Bitrate kbits/s' with line \n")
+
 
 
 gnuplot.close()
