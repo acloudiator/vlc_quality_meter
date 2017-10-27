@@ -155,7 +155,7 @@ int main(int argc, char* argv[])
 
 		libvlc_release (inst);
 
-		sleep(2);
+		sleep(3);
 		reportEvent("RESPAWN","");
 	}
 
