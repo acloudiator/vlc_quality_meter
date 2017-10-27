@@ -221,8 +221,7 @@ gnuplot.write("\t'tmp/output.csv' using ($1-"+str(xstart)+"):5 t'Width' with lin
 gnuplot.write("set ylabel 'Bandwidth usage (Kbps)'\n")
 #gnuplot.write("set yrange [0:1200]\n")
 gnuplot.write("set autoscale\n")
-
-gnuplot.write("set yrange [0:1500]\n")
+#gnuplot.write("set yrange [0:1500]\n")
 gnuplot.write("set xrange [0:"+str(xend-xstart)+"]\n")
 gnuplot.write("unset label\n")
 
