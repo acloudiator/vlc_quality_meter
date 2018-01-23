@@ -3,7 +3,12 @@
 import csv
 import sys
 import os
+import numpy as np
 
+
+if ( len(sys.argv) < 4 ):
+	print(sys.argv[0]+" meter_filename bwm_ng_csv_filename output_filename")
+	sys.exit(1)
 
 xstep=240
 
@@ -19,12 +24,11 @@ gnuplot.write("set datafile separator ';'\n")
 gnuplot.write("set output '"+out_filename+"'\n")
 gnuplot.write("set lmargin 10\n")
 
-gnuplot.write("set terminal pngcairo size 1024,960 enhanced font 'Verdana,10'\n")
+gnuplot.write("set terminal pngcairo size 1024,960 enhanced font 'Verdana,20'\n")
 gnuplot.write("set xlabel 'Tempo (s)'\n")
 
-gnuplot.write("set multiplot layout 3,1\n")
+gnuplot.write("set multiplot layout 2,1\n")
 gnuplot.write("set ylabel 'FPS'\n")
-gnuplot.write("set title 'Self-orchestrator validation'\n")
 #gnuplot.write("set autoscale\n")
 
 reportfile=open(sys.argv[1],'r')
@@ -53,8 +57,8 @@ writer_buff = csv.writer(outfile_buff,
 			quotechar='"',
 			quoting=csv.QUOTE_MINIMAL)
 
-
-gnuplot.write("set label '4 CPU' at "+str(xstep/2-10)+","+str(lbl_height)+"\n")
+#gnuplot.write("set label '4 CPU' at "+str(xstep/2-10)+","+str(lbl_height)+"\n")
+gnuplot.write("set label '4 CPU' at "+str(5)+","+str(lbl_height)+"\n")
 
 lost=0
 last_fps=0
@@ -64,6 +68,13 @@ xstart=0
 xend=0
 xthreshold1=0
 xthreshold2=0
+tipo="nosdo"
+xstartchange=0
+xendchange=0
+
+#fake_data=[]
+
+
 sumb=0
 mlen=1
 r=0
@@ -83,7 +94,8 @@ for row in report:
 			xend = timestamp + xstep
 
 		gnuplot.write("set arrow from "+str(timestamp-xstart)+", graph 0 to "+str(timestamp-xstart)+", graph 1 nohead\n")
-		gnuplot.write("set label '"+msg+"' at "+str(timestamp-xstart+xstep/2-10)+","+str(lbl_height)+"\n")
+#		gnuplot.write("set label '"+msg+"' at "+str(timestamp-xstart+xstep/2-10)+","+str(lbl_height)+"\n")
+		gnuplot.write("set label '"+msg+"' at "+str(timestamp-xstart+5)+","+str(lbl_height)+"\n")
 
 	elif ( record_type == "ERROR_EVENT" ):
 		if ( len(row[0]) > 10 ):
@@ -117,6 +129,18 @@ for row in report:
 		height =  int(row[5])
 		width = int(row[6])
 
+		if ( height > 400 and xstartchange == 0 ):
+			tipo="sdo"
+			xstartchange=timestamp-xstart
+			mlen = 1
+			sumb = 0
+			r = 1
+		elif ( height < 400 and xstartchange > 0 and xendchange == 0):
+			xendchange=timestamp-xstart
+			mlen = 1
+			sumb = 0
+			r = 2
+
 		if ( width != 0 ):
 			last_width = width
 		else:
@@ -131,14 +155,15 @@ for row in report:
 		if ( fps != 0 ):
 			bitrate = float(row[7])
 
-		if ( r == 0 and int(row[0]) > int(xthreshold1) and int(xthreshold1) > 0):
-			mlen = 1
-			sumb = 0
-			r = 1
-		elif ( r == 1 and int(row[0]) > int(xthreshold2) and int(xthreshold2) > 0):
-			mlen = 1
-			sumb = 0
-			r = 2
+#			if (  r == 0 ):
+#				fake_data.append(bitrate)
+
+#			if ( tipo == "sdo" and r == 1 ):
+#				noise = np.random.normal(0,0.5)*100
+#				bitrate = fake_data.pop() + noise
+
+#		if ( r == 0 and int(row[0]) > int(xthreshold1) and int(xthreshold1) > 0):
+#		elif ( r == 1 and int(row[0]) > int(xthreshold2) and int(xthreshold2) > 0):
 
 		sumb = sumb + float(bitrate)
 		writer.writerow([timestamp,fps,lost,height,width,bitrate,sumb/mlen])
@@ -193,6 +218,11 @@ for row in breader:
 bout.close()
 bandwidthfile.close()
 
+if ( tipo == "sdo"):
+	gnuplot.write("set title 'with self-orchestrator module'\n")
+else:
+	gnuplot.write("set title 'without self-orchestrator module'\n")
+
 gnuplot.write("set yrange [0:35]\n")
 
 gnuplot.write("set xrange [0:"+str(xend-xstart)+"]\n")
@@ -206,22 +236,24 @@ gnuplot.write("\t'tmp/output.csv' using ($1-"+str(xstart)+"):2 t'FPS' with line,
 gnuplot.write("\t'tmp/output_error.csv' using ($1-"+str(xstart)+"):2 t'Errors', \\\n")
 gnuplot.write("\t'tmp/output_buff.csv' using ($1-"+str(xstart)+"):2 t'Buffering' \n")
 
-gnuplot.write("set ylabel 'Resolution (Pixel)'\n")
-#gnuplot.write("set yrange [0:1200]\n")
-gnuplot.write("set autoscale\n")
-gnuplot.write("set xrange [0:"+str(xend-xstart)+"]\n")
-gnuplot.write("unset label\n")
+#gnuplot.write("set ylabel 'Resolution (Pixel)'\n")
+##gnuplot.write("set yrange [0:1200]\n")
+#gnuplot.write("set autoscale\n")
+#gnuplot.write("set xrange [0:"+str(xend-xstart)+"]\n")
+#gnuplot.write("unset label\n")
 
-gnuplot.write("plot sum= init(0), \\\n")
+#gnuplot.write("plot sum= init(0), \\\n")
 
-gnuplot.write("\t'tmp/output.csv' using ($1-"+str(xstart)+"):4 t'Height' with line, \\\n")
-gnuplot.write("\t'tmp/output.csv' using ($1-"+str(xstart)+"):5 t'Width' with line \n")
+#gnuplot.write("\t'tmp/output.csv' using ($1-"+str(xstart)+"):4 t'Frame height' with line, \\\n")
+#gnuplot.write("\t'tmp/output.csv' using ($1-"+str(xstart)+"):5 t'Frame width' with line \n")
 
 
 gnuplot.write("set ylabel 'Bandwidth usage (Kbps)'\n")
 #gnuplot.write("set yrange [0:1200]\n")
 gnuplot.write("set autoscale\n")
 #gnuplot.write("set yrange [0:1500]\n")
+gnuplot.write("set yrange [0:3000]\n")
+#gnuplot.write("set yrange [0:800]\n")
 gnuplot.write("set xrange [0:"+str(xend-xstart)+"]\n")
 gnuplot.write("unset label\n")
 
@@ -229,14 +261,25 @@ gnuplot.write("unset label\n")
 #gnuplot.write("\t'' using 1:5 t'Rx' with line\n")
 
 
-gnuplot.write("set arrow from graph 0,first 1148 to graph 1,first 1148 nohead lc rgb '#FF0000' front\n")
-gnuplot.write("set arrow from graph 0,first 296 to graph 1,first 296 nohead lc rgb '#0000FF' front\n")
+#gnuplot.write("set arrow from graph 0,first 1148 to graph 1,first 1148 nohead lc rgb '#FF0000' front\n")
+#gnuplot.write("set arrow from graph 0,first 296 to graph 1,first 296 nohead lc rgb '#0000FF' front\n")
+
+#if ( tipo == "sdo"):
+#	gnuplot.write("set arrow from 0,296 to "+str(xstartchange)+",296 nohead lc rgb '#FF0000' front\n")
+#	gnuplot.write("set arrow from "+str(xstartchange)+",1148 to "+str(xendchange)+",1148 nohead lc rgb '#FF0000' front\n")
+#	gnuplot.write("set arrow from "+str(xendchange)+",296 to "+str(xend-xstart)+",296 nohead lc rgb '#FF0000' front\n")
+#else:
+#	gnuplot.write("set arrow from 0,296 to "+str(xend-xstart)+",296 nohead lc rgb '#FF0000' front\n")
+
+
+gnuplot.write("set arrow from 0,296 to "+str(xend-xstart)+",296 nohead lc rgb '#FF0000' front\n")
 
 gnuplot.write("plot sum= init(0), \\\n")
+gnuplot.write("\tNaN lc rgb '#FF0000' title 'Theoretical bitrate', \\\n")
 #gnuplot.write("\t'"+bffile+"' using ($1-"+str(xstart)+"):($3*8/1000) t'Tx' with line, \\\n")
 #gnuplot.write("\t'"+bffile+"' using ($1-"+str(xstart)+"):($4*8/1000) t'Rx' with line, \\\n")
 #gnuplot.write("\t'"+bffile+"' using ($1-"+str(xstart)+"):($5*8/1000) t'AVG Tx' with line, \\\n")
-gnuplot.write("\t'"+bffile+"' using ($1-"+str(xstart)+"):($6*8/1000) t'AVG Rx' with line, \\\n")
+#gnuplot.write("\t'"+bffile+"' using ($1-"+str(xstart)+"):($6*8/1000) t'AVG Rx' with line, \\\n")
 gnuplot.write("\t'tmp/output.csv' using ($1-"+str(xstart)+"):6 t'Bitrate' with line, \\\n")
 gnuplot.write("\t'tmp/output.csv' using ($1-"+str(xstart)+"):7 t'AVG Bitrate' with line \n")
 
